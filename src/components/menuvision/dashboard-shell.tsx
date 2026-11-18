@@ -1,0 +1,9 @@
+import type { ReactNode } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { LayoutDashboard, Settings, LogOut, ArrowUpRight, Store, Utensils, Tags, Box, BookOpen, QrCode, ShoppingBag, CreditCard } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Brand } from './brand';
+import { Button } from '@/components/ui/button';
+export function DashboardShell({children,name}:{children:ReactNode;name:string}) {const queryClient=useQueryClient();const navigate=useNavigate();async function signOut(){await queryClient.cancelQueries();queryClient.clear();const {error}=await supabase.auth.signOut();if(error){toast.error('Não foi possível sair. Tente novamente.');return;}await navigate({to:'/auth',replace:true});}return <div className="dashboard-shell"><aside className="sidebar"><Brand/><nav className="sidebar-nav" aria-label="Menu administrativo"><Link to="/dashboard"><LayoutDashboard/> Visão geral</Link><Link to="/restaurant"><Store/> Meu restaurante</Link><Link to="/dishes"><Utensils/> Meus pratos</Link><Link to="/categories"><Tags/> Categorias</Link><Link to="/models"><Box/> Modelos 3D</Link><Link to="/digital-menu"><BookOpen/> Cardápio digital</Link><Link to="/qr-code"><QrCode/> QR Code</Link><Link to="/orders"><ShoppingBag/> Pedidos</Link><Link to="/billing"><CreditCard/> Assinatura e pagamentos</Link><Link to="/settings"><Settings/> Configurações</Link></nav><div className="sidebar-bottom"><p className="text-xs text-muted-foreground mb-4">Gastronomia em uma nova dimensão.</p><Button variant="ghost" asChild><Link to="/">MenuVision <ArrowUpRight/></Link></Button></div></aside><main className="dash-main"><header className="dash-header"><span>{name}</span><Button variant="ghost" size="sm" onClick={signOut}><LogOut/> Sair</Button></header><div className="dash-content">{children}</div></main></div>;}

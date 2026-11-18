@@ -1,0 +1,15 @@
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { Check, RefreshCw, ShoppingBag } from 'lucide-react';
+import { trackingQuery } from '@/lib/orders-query';
+import { money, statusLabels } from '@/lib/orders-schema';
+import { pageHead } from '@/lib/metadata';
+import { Button } from '@/components/ui/button';
+import { Brand } from '@/components/menuvision/brand';
+export const Route = createFileRoute('/pedido/$token')({ head: () => ({ ...pageHead('Acompanhe seu pedido', 'Status do seu pedido no MenuVision.'), meta: [...pageHead('Acompanhe seu pedido', 'Status do seu pedido no MenuVision.').meta, { name: 'robots', content: 'noindex,nofollow' }, { name: 'referrer', content: 'no-referrer' }] }), loader: ({ context, params }) => context.queryClient.ensureQueryData(trackingQuery(params.token)), component: Tracking });
+function Tracking() {
+  const { token } = Route.useParams(); const { data, refetch, isFetching, isRefetchError } = useSuspenseQuery(trackingQuery(token));
+  if (!data) return <main className="wrap py-16"><Brand/><h1 className="text-3xl mt-12">Pedido não encontrado</h1></main>;
+  const steps = ['received', 'preparing', 'ready', 'completed'] as const;
+  return <main className="tracking-page"><Brand/><div className="flex items-center justify-between mt-12 gap-4"><div><p className="eyebrow">{data.restaurant_name}</p><h1 className="text-3xl mt-4">Pedido #{data.number}</h1></div><Button size="icon" variant="outline" title="Atualizar pedido" aria-label="Atualizar pedido" disabled={isFetching} onClick={() => void refetch()}><RefreshCw/></Button></div><p className={`order-current ${data.status === 'cancelled' ? 'text-destructive' : 'text-success'}`} role="status">{statusLabels[data.status]}</p>{isRefetchError && <p role="alert" className="form-message error">Não foi possível atualizar. Tente novamente.</p>}{data.status !== 'cancelled' && <ol className="order-timeline">{steps.map((s, i) => <li key={s} className={i <= steps.indexOf(data.status as typeof steps[number]) ? 'is-done' : ''}><span><Check size={16}/></span>{statusLabels[s]}</li>)}</ol>}<section className="mt-10 border-t border-border pt-6"><h2 className="text-lg flex items-center gap-2"><ShoppingBag size={20}/>Resumo</h2><ul className="my-6 space-y-5">{data.items.map(i => <li className="flex justify-between gap-4 text-sm" key={i.dish_id}><span>{i.quantity} × {i.name}</span><strong className="shrink-0">{money(i.quantity * i.unit_cents)}</strong></li>)}</ul><p className="flex justify-between border-t border-border pt-5"><span>Total</span><strong>{money(data.total_cents)}</strong></p></section><Button asChild variant="outline" className="mt-10"><Link to="/menu/$slug" params={{ slug: data.slug }}>Voltar ao cardápio</Link></Button></main>;
+}

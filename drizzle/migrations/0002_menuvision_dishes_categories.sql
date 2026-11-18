@@ -1,0 +1,16 @@
+CREATE TABLE public.categories (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, restaurant_id uuid NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE, name text NOT NULL CHECK (char_length(name) BETWEEN 2 AND 100), created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(id, restaurant_id), UNIQUE(restaurant_id, name));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO authenticated;
+GRANT ALL ON public.categories TO service_role;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY categories_own ON public.categories FOR ALL TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid() AND EXISTS (SELECT 1 FROM public.restaurants r WHERE r.id = restaurant_id AND r.owner_id = auth.uid()));
+CREATE TABLE public.dishes (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL, restaurant_id uuid NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE, category_id uuid, name text NOT NULL CHECK(char_length(name) BETWEEN 2 AND 100), description text NOT NULL DEFAULT '' CHECK(char_length(description) <= 1000), price numeric(10,2) NOT NULL CHECK(price >= 0), active boolean NOT NULL DEFAULT true, photo_path text CHECK(photo_path IS NULL OR photo_path LIKE owner_id::text || '/%'), created_at timestamptz NOT NULL DEFAULT now(), FOREIGN KEY(category_id, restaurant_id) REFERENCES public.categories(id, restaurant_id));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.dishes TO authenticated;
+GRANT ALL ON public.dishes TO service_role;
+ALTER TABLE public.dishes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY dishes_own ON public.dishes FOR ALL TO authenticated USING(owner_id = auth.uid()) WITH CHECK(owner_id = auth.uid() AND EXISTS(SELECT 1 FROM public.restaurants r WHERE r.id = restaurant_id AND r.owner_id = auth.uid()));
+CREATE INDEX dishes_restaurant_idx ON public.dishes(restaurant_id);
+CREATE INDEX categories_restaurant_idx ON public.categories(restaurant_id);
+CREATE POLICY dish_photos_own ON storage.objects FOR ALL TO authenticated USING(bucket_id = 'dish-photos' AND (storage.foldername(name))[1] = auth.uid()::text) WITH CHECK(bucket_id = 'dish-photos' AND (storage.foldername(name))[1] = auth.uid()::text AND lower(storage.extension(name)) IN ('jpg','png','webp'));
+CREATE OR REPLACE FUNCTION public.handle_menuvision_signup() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ BEGIN INSERT INTO public.profiles(id, display_name) VALUES (NEW.id, left(coalesce(NEW.raw_user_meta_data->>'display_name', ''),100)); INSERT INTO public.restaurants(owner_id,name,slug,phone) VALUES (NEW.id, left(coalesce(nullif(NEW.raw_user_meta_data->>'restaurant_name',''), 'Meu restaurante'),100), 'restaurante-' || replace(NEW.id::text,'-',''), left(coalesce(NEW.raw_user_meta_data->>'phone',''),30)); RETURN NEW; END; $$;
+REVOKE ALL ON FUNCTION public.handle_menuvision_signup() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.handle_menuvision_signup() TO service_role;

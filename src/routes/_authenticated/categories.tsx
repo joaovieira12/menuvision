@@ -1,0 +1,24 @@
+import { createFileRoute } from '@tanstack/react-router';
+import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
+import { useServerFn } from '@tanstack/react-start';
+import { useState, type FormEvent } from 'react';
+import { Plus, Pencil, Trash2, Tags } from 'lucide-react';
+import { toast } from 'sonner';
+import { restaurantQuery } from '@/lib/restaurant-query';
+import { menuQuery } from '@/lib/menu-query';
+import { saveCategory, deleteCategory, type getMenu } from '@/lib/menu.functions';
+import { categorySchema } from '@/lib/menu-schema';
+import { pageHead } from '@/lib/metadata';
+import { DashboardShell } from '@/components/menuvision/dashboard-shell';
+import { DeleteConfirm } from '@/components/menuvision/delete-confirm';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+export const Route = createFileRoute('/_authenticated/categories')({ head: () => pageHead('Categorias', 'Organize as categorias dos pratos no MenuVision.'), loader: ({ context }) => Promise.all([context.queryClient.ensureQueryData(restaurantQuery()), context.queryClient.ensureQueryData(menuQuery())]), component: Categories });
+type Category = Awaited<ReturnType<typeof getMenu>>['categories'][number];
+function Categories() {
+  const { data: workspace } = useSuspenseQuery(restaurantQuery()); const { data } = useSuspenseQuery(menuQuery()); const client = useQueryClient(); const save = useServerFn(saveCategory); const remove = useServerFn(deleteCategory);
+  const [editor, setEditor] = useState<Category | null | undefined>(); const [deleting, setDeleting] = useState<Category | null>(null); const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  async function submit(e: FormEvent<HTMLFormElement>) { e.preventDefault(); const parsed = categorySchema.safeParse({ id: editor?.id, name: new FormData(e.currentTarget).get('name') }); if (!parsed.success) { setError(parsed.error.issues[0]?.message ?? 'Confira o nome.'); return; } setBusy(true); setError(''); try { await save({ data: parsed.data }); await client.invalidateQueries({ queryKey: ['menu'] }); setEditor(undefined); toast.success('Categoria salva.'); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível salvar.'); } finally { setBusy(false); } }
+  async function confirm() { if (!deleting) return; setBusy(true); setError(''); try { await remove({ data: { id: deleting.id } }); await client.invalidateQueries({ queryKey: ['menu'] }); setDeleting(null); toast.success('Categoria excluída.'); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível excluir.'); } finally { setBusy(false); } }
+  return <DashboardShell name={workspace.restaurant.name}><div className="page-heading"><div><span className="eyebrow">CADA SABOR EM SEU LUGAR</span><h1>Categorias</h1><p className="dash-subtitle">{data.categories.length} categorias</p></div><Button onClick={() => { setEditor(null); setError(''); }}><Plus/>Nova categoria</Button></div>{data.categories.length ? <div className="category-list">{data.categories.map(c => <article key={c.id} className="category-row"><Tags/><div><h2>{c.name}</h2><p>{data.dishes.filter(d => d.category_id === c.id).length} pratos</p></div><Button variant="ghost" size="icon" title="Editar categoria" aria-label={`Editar ${c.name}`} onClick={() => { setEditor(c); setError(''); }}><Pencil/></Button><Button variant="ghost" size="icon" title="Excluir categoria" aria-label={`Excluir ${c.name}`} onClick={() => { setDeleting(c); setError(''); }}><Trash2/></Button></article>)}</div> : <div className="empty-state"><Tags size={38}/><h2>Nenhuma categoria cadastrada</h2></div>}{editor !== undefined && <Dialog open onOpenChange={open => { if (!open && !busy) setEditor(undefined); }}><DialogContent><DialogHeader><DialogTitle>{editor ? 'Editar categoria' : 'Nova categoria'}</DialogTitle><DialogDescription>{editor?.name ?? 'Organização do cardápio'}</DialogDescription></DialogHeader><form className="form-stack" onSubmit={submit}><div className="field"><label htmlFor="category-name">Nome da categoria</label><input id="category-name" name="name" required minLength={2} maxLength={100} defaultValue={editor?.name}/></div>{error && <p role="alert" className="form-message error">{error}</p>}<Button disabled={busy}>{busy ? 'Salvando…' : 'Salvar categoria'}</Button></form></DialogContent></Dialog>}<DeleteConfirm name={deleting?.name ?? null} busy={busy} error={error} close={() => setDeleting(null)} confirm={() => void confirm()}/></DashboardShell>;
+}

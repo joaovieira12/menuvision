@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794497073514,
+      "tag": "0000_menuvision_restaurant_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794497286375,
+      "tag": "0001_restrict_signup_trigger_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794498444195,
+      "tag": "0002_menuvision_dishes_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794499637363,
+      "tag": "0003_menuvision_weekly_plans_billing_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794499766707,
+      "tag": "0004_restrict_billing_catalog_writes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794536087465,
+      "tag": "0005_mercado_pago_checkout_and_confirmation",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794537622023,
+      "tag": "0006_tripo_dish_model_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794642346074,
+      "tag": "0007_digital_menu_customer_orders",
+      "breakpoints": true
+    }
+  ]
+}

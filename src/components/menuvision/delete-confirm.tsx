@@ -1,0 +1,5 @@
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+export function DeleteConfirm({ name, busy, error, close, confirm }: { name: string | null; busy: boolean; error: string; close: () => void; confirm: () => void }) {
+  return <AlertDialog open={name !== null} onOpenChange={open => { if (!open && !busy) close(); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Excluir {name}?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>{error && <p role="alert" className="form-message error">{error}</p>}<AlertDialogFooter><Button variant="outline" disabled={busy} onClick={close}>Cancelar</Button><Button variant="destructive" disabled={busy} onClick={confirm}>{busy ? 'Excluindo…' : 'Confirmar exclusão'}</Button></AlertDialogFooter></AlertDialogContent></AlertDialog>;
+}

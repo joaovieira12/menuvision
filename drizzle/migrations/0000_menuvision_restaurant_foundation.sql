@@ -1,0 +1,17 @@
+CREATE TABLE public.profiles (id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE, display_name text NOT NULL DEFAULT '', avatar_url text, preferences jsonb NOT NULL DEFAULT '{}'::jsonb, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT, UPDATE ON public.profiles TO authenticated;
+GRANT ALL ON public.profiles TO service_role;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY profiles_read_own ON public.profiles FOR SELECT TO authenticated USING (id = auth.uid());
+CREATE POLICY profiles_update_own ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+CREATE TABLE public.restaurants (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), owner_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE, name text NOT NULL CHECK (char_length(name) BETWEEN 2 AND 100), slug text NOT NULL UNIQUE, logo_url text, description text NOT NULL DEFAULT '', phone text NOT NULL DEFAULT '', created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(owner_id));
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.restaurants TO authenticated;
+GRANT ALL ON public.restaurants TO service_role;
+ALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;
+CREATE POLICY restaurants_read_own ON public.restaurants FOR SELECT TO authenticated USING (owner_id = auth.uid());
+CREATE POLICY restaurants_insert_own ON public.restaurants FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+CREATE POLICY restaurants_update_own ON public.restaurants FOR UPDATE TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+CREATE POLICY restaurants_delete_own ON public.restaurants FOR DELETE TO authenticated USING (owner_id = auth.uid());
+CREATE FUNCTION public.handle_menuvision_signup() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$ BEGIN INSERT INTO public.profiles(id, display_name) VALUES (NEW.id, left(coalesce(NEW.raw_user_meta_data->>'display_name', ''),100)); INSERT INTO public.restaurants(owner_id,name,slug) VALUES (NEW.id, left(coalesce(nullif(NEW.raw_user_meta_data->>'restaurant_name',''), 'Meu restaurante'),100), 'restaurante-' || replace(NEW.id::text,'-','')); RETURN NEW; END; $$;
+REVOKE ALL ON FUNCTION public.handle_menuvision_signup() FROM PUBLIC;
+CREATE TRIGGER on_menuvision_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_menuvision_signup();

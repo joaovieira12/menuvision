@@ -1,0 +1,9 @@
+CREATE TABLE public.dish_model_jobs(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), dish_id uuid NOT NULL REFERENCES public.dishes(id) ON DELETE CASCADE, restaurant_id uuid NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE, owner_id uuid NOT NULL, provider_task_id text UNIQUE, status text NOT NULL DEFAULT 'submitting' CHECK(status IN ('submitting','queued','running','success','failed','cancelled','banned','expired')), progress integer NOT NULL DEFAULT 0 CHECK(progress BETWEEN 0 AND 100), width_cm numeric NOT NULL CHECK(width_cm>0 AND width_cm<=200), model_path text, error_message text, created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.dish_model_jobs TO authenticated;
+GRANT ALL ON public.dish_model_jobs TO service_role;
+ALTER TABLE public.dish_model_jobs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY model_jobs_owner_read ON public.dish_model_jobs FOR SELECT TO authenticated USING(owner_id=auth.uid());
+CREATE UNIQUE INDEX one_model_generation_per_dish ON public.dish_model_jobs(dish_id) WHERE status IN ('submitting','queued','running');
+CREATE FUNCTION public.validate_model_job_owner() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ BEGIN IF NOT EXISTS(SELECT 1 FROM public.dishes WHERE id=NEW.dish_id AND restaurant_id=NEW.restaurant_id AND owner_id=NEW.owner_id) THEN RAISE EXCEPTION 'Model dish owner mismatch'; END IF; RETURN NEW; END; $$;
+REVOKE ALL ON FUNCTION public.validate_model_job_owner() FROM PUBLIC,anon,authenticated;
+CREATE TRIGGER model_job_owner BEFORE INSERT OR UPDATE ON public.dish_model_jobs FOR EACH ROW EXECUTE FUNCTION public.validate_model_job_owner();
